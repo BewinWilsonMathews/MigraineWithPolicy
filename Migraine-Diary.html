@@ -633,63 +633,69 @@
               Fetch Patient Data
             -------------------------- */
 
-            let fetchTimeout = null;
+let fetchTimeout = null;
+let currentRequestId = 0;   // ✅ NEW
 
-            patientInput.addEventListener("input", () => {
+patientInput.addEventListener("input", () => {
 
-              clearTimeout(fetchTimeout);
+  clearTimeout(fetchTimeout);
 
-              errorEl.style.display = "none";
+  errorEl.style.display = "none";
 
-              nameField.style.display = "none";
-              passwordField.style.display = "none";
-              loginBtn.style.display = "none";
+  nameField.style.display = "none";
+  passwordField.style.display = "none";
+  loginBtn.style.display = "none";
 
-              patientData = null;
+  patientData = null;
 
-              const id = patientInput.value.trim();
+  const id = patientInput.value.trim();
+  if (!id) return;
 
-              if (!id) return;
+  const requestId = ++currentRequestId;   // ✅ track this request
 
-              fetchTimeout = setTimeout(async () => {
+  fetchTimeout = setTimeout(async () => {
 
-                try {
+    try {
+      const res = await fetch(API_URL + id, {
+        headers: {
+          Authorization: "token " + API_TOKEN
+        }
+      });
 
-                  const res = await fetch(API_URL + id, {
-                    headers: {
-                      Authorization: "token " + API_TOKEN
-                    }
-                  });
+      // ❗ Ignore outdated responses
+      if (requestId !== currentRequestId) return;
 
-                  if (!res.ok) throw new Error("Not Found");
+      if (!res.ok) throw new Error("Not Found");
 
-                  const json = await res.json();
+      const json = await res.json();
 
-                  patientData = json.data;
+      patientData = json.data;
 
-                  if (!patientData) throw new Error("No Data");
+      if (!patientData) throw new Error("No Data");
 
+      // ✅ SUCCESS → hide error explicitly
+      errorEl.style.display = "none";
 
-                  /* Show Patient Name */
+      nameInput.value = patientData.patient_name || patientData.name;
 
-                  nameInput.value = patientData.patient_name || patientData.name;
+      nameField.style.display = "block";
+      passwordField.style.display = "block";
+      loginBtn.style.display = "block";
 
-                  nameField.style.display = "block";
-                  passwordField.style.display = "block";
-                  loginBtn.style.display = "block";
+    } catch (e) {
 
+      // ❗ Ignore outdated responses
+      if (requestId !== currentRequestId) return;
 
-                } catch (e) {
+      errorEl.textContent = "Patient ID not found.";
+      errorEl.style.display = "block";
 
-                  errorEl.textContent = "Patient ID not found.";
-                  errorEl.style.display = "block";
+      patientData = null;
+    }
 
-                  patientData = null;
-                }
+  }, 600);
 
-              }, 600);
-
-            });
+});
 
 
             /* -------------------------
