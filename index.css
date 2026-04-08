@@ -3009,4 +3009,44 @@
   .u-section-7 .u-image-2 {
     min-height: 390px;
   }
+
+  /* ===== UNIVERSAL FOOTER FIX (All pages) ===== */
+
+/* Desktop untouched */
+@media (min-width: 768px) {
+  #footer .u-sheet-1 {
+    text-align: center;
+  }
+}
+
+/* Mobile fix */
+@media (max-width: 767px) {
+
+  #footer .u-sheet-1 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Normalize all three links */
+  #footer .u-text-1,
+  #footer .u-text-2,
+  #footer .u-btn-3 {
+    margin: 6px 0;
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Make ALL links identical */
+  #footer .u-text-1 a,
+  #footer .u-text-2 a,
+  #footer .u-btn-3 {
+    display: inline-block;
+    font-size: 14px;
+    width: 100%;
+    text-align: center;
+  }
+
+}
 }
