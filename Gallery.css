@@ -525,3 +525,18 @@
     font-size: 14px;
   }
 }
+
+@media (max-width: 767px) {
+
+  /* Force ALL footer links to behave SAME */
+  #footer .u-sheet-1 a {
+    display: block !important;
+    width: 90% !important;
+    margin: 8px auto !important;
+    font-size: 16px !important;
+    text-align: center !important;
+    border-bottom: 2px solid #7391c4 !important;
+    padding-bottom: 6px !important;
+  }
+
+}
