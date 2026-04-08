@@ -248,3 +248,26 @@
   }
 
 }
+
+@media (max-width: 767px) {
+
+  /* Make ALL links identical */
+  #footer .u-text-1 a,
+  #footer .u-text-2 a,
+  #footer .u-btn-3 {
+    display: block;
+    width: 90%;
+    margin: 8px auto;
+    font-size: 16px;   /* 🔥 fixes smaller Privacy text */
+    text-align: center;
+  }
+
+  /* Force same underline style */
+  #footer .u-text-1 a,
+  #footer .u-text-2 a,
+  #footer .u-btn-3 {
+    border-bottom: 2px solid #7391c4;
+    padding-bottom: 6px;
+  }
+
+}
