@@ -28,6 +28,17 @@
         .large-slot:hover{background:var(--primary-color);color:#fff;transform:translateY(-2px)}
         button{background:var(--primary-color);color:#fff;font-size:18px;font-weight:700;padding:12px 24px;border:none;border-radius:8px;cursor:pointer}
         @media(max-width:600px){.large-slot{flex:1 1 100%;max-width:none}}
+        .test-banner {
+  background: #ffcc00;
+  color: #000;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  border-bottom: 2px solid #e6b800;
+}
         /* follow-up small uniform slots */
     .small-slot{
       flex: 0 0 90px;           /* fixed narrow width */
@@ -47,56 +58,13 @@
       .small-slot{flex:0 0 72px;height:34px;font-size:13px}
     }
 
-
-
-    #paymentSection{
-  display:none !important;
-}
-.mock-warning{
-  background:#dc3545;
-  color:#fff;
-  border:none;
-  padding:16px;
-  border-radius:8px;
-  font-weight:700;
-  text-align:center;
-  margin-bottom:20px;
-  font-size:16px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.15);
-}
-.whatsapp-btn{
-  display:block;
-  width:100%;
-  background:#25D366;
-  color:#fff;
-  text-align:center;
-  padding:12px;
-  border-radius:8px;
-  font-weight:700;
-  text-decoration:none;
-  margin-bottom:15px;
-  font-size:16px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.15);
-  transition:all .2s;
-}
-.whatsapp-btn:hover{
-  background:#1ebe5d;
-  transform:translateY(-1px);
-}
-
-
       </style>
     </head>
     <body>
-      <div class="container">
-        <div class="mock-warning">
-  ⚠️ Appointment booking is currently in demo mode. This form does NOT create a real appointment.
-  Please contact the clinic directly to confirm your booking.
+      <div class="test-banner">
+  ⚠️ This is a TEST environment. No real appointments are booked and no actual money is transferred.
 </div>
-          <a href="https://wa.me/917510289534" target="_blank" class="whatsapp-btn">
-💬 Contact Clinic on WhatsApp
-</a>
-
+      <div class="container">
         <img src="images/aayushcarelogowhite.jpg" alt="Aayush Care Logo" class="logo">
         <h2>Book Appointment</h2>
 
@@ -440,9 +408,12 @@
   }
 
   /* ---------- HDFC UPI HELPERS ---------- */
-  function generateTxnId() {
-    return "APT" + Date.now(); // always unique
-  }
+let currentTxnId = null;
+
+function generateTxnId() {
+  currentTxnId = "ORD" + Date.now();   // ✅ CHANGE APT → ORD
+  return currentTxnId;
+}
 
   function buildUPILink(amount) {
     const params = new URLSearchParams({
@@ -458,7 +429,7 @@
       qrMedium: UPI_CONFIG.qrMedium
     });
 
-    return `upi://pay?${params.toString()}`;
+    return `upi://pay?${params.toString().replace("%40", "@")}`;
   }
 
 
@@ -491,21 +462,181 @@
       },500);
     });
     
-  payButton.addEventListener('click', () => {
-    if (!selectedSlot) {
-      alert("Please select a time slot first.");
+payButton.addEventListener('click', async () => {
+
+  if (!selectedSlot) {
+    alert("Please select a time slot first.");
+    return;
+  }
+
+  if (!currentAmount || currentAmount <= 0) {
+    alert("Invalid payment amount.");
+    return;
+  }
+
+  const upiUrl = buildUPILink(currentAmount);
+
+  console.log("====== UPI LINK ======");
+  console.log(upiUrl);
+
+  console.log("Txn ID:", currentTxnId);
+
+  // ✅ STEP 1 — Update backend BEFORE opening UPI
+  await updatePlainText(currentTxnId);
+
+  window.location.href = upiUrl;
+
+  console.log("Waiting for payment...");
+
+  // ✅ STEP 3 — Start checking
+  startPaymentCheck(currentTxnId);
+
+});
+
+async function updatePlainText(orderId) {
+
+  const merchantId = "HDFC000010874024";
+
+  // ✅ CORRECT FORMAT (VERY IMPORTANT)
+  const plainText = `${merchantId}|${orderId}|||||||||||NA|NA`;
+
+  try {
+
+    // 🔍 STEP 1 — FIND RECORD
+    const filters = JSON.stringify([
+      ["decrypted_meres", "like", "%" + orderId + "%"]
+    ]);
+
+    const fields = JSON.stringify(["name", "decrypted_meres"]);
+
+    const url = `https://software.aayushcare.com/api/resource/Online%20Payment%20Log?filters=${filters}&fields=${fields}`;
+
+    const res = await fetch(url, {
+      headers: {
+        "Authorization": "token 7897c339c442e4b:01ff7013b92aa32"
+      }
+    });
+
+    const data = await res.json();
+
+    if (!data.data || data.data.length === 0) {
+      console.log("No record found for update");
       return;
     }
 
-    if (!currentAmount || currentAmount <= 0) {
-      alert("Invalid payment amount.");
+    // ✅ SAFE MATCH
+    const record = data.data.find(r => {
+      if (!r.decrypted_meres) return false;
+      const parts = r.decrypted_meres.split("|");
+      return parts[1] === orderId;
+    });
+
+    if (!record) {
+      console.log("Exact match not found");
       return;
     }
 
-    const upiUrl = buildUPILink(currentAmount);
-    window.location.href = upiUrl;
-  });
+    const name = record.name;
 
+    // ✏️ STEP 2 — UPDATE plain_text
+    await fetch(`https://software.aayushcare.com/api/resource/Online%20Payment%20Log/${name}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "token 7897c339c442e4b:01ff7013b92aa32"
+      },
+      body: JSON.stringify({
+        plain_text: plainText
+      })
+    });
+
+    console.log("Plain text updated for:", orderId);
+
+  } catch (err) {
+    console.error("Update error:", err);
+  }
+}
+
+async function startPaymentCheck(orderId) {
+  let attempts = 0;
+
+  const interval = setInterval(async () => {
+    attempts++;
+
+    try {
+
+      const filters = JSON.stringify([
+  ["decrypted_meres", "like", "%" + orderId + "%"]
+]);
+
+const fields = JSON.stringify([
+  "name",
+  "decrypted_meres"
+]);
+      const url = `https://software.aayushcare.com/api/resource/Online%20Payment%20Log?filters=${filters}&fields=${fields}`;
+
+      const res = await fetch(url, {
+        headers: {
+          "Authorization": "token 7897c339c442e4b:01ff7013b92aa32"
+        }
+      });
+
+      const data = await res.json();
+
+      if (data.data && data.data.length > 0) {
+        const record = data.data.find(r => {
+  const parsed = parseMeres(r.decrypted_meres);
+  return parsed && parsed.orderId === orderId;
+});
+
+        console.log("Matched Payment:", record);
+
+const meresData = parseMeres(record.decrypted_meres);
+
+console.log("MERES DATA:", meresData);
+
+if (
+  meresData &&
+  meresData.status === "SUCCESS" &&
+  meresData.orderId === orderId
+) {
+  clearInterval(interval);
+  window.location.href = "PaymentSuccess.html";
+}
+
+else if (meresData && meresData.status === "FAILED") {
+  clearInterval(interval);
+  alert("Payment Failed ❌");
+}
+
+else {
+  console.log("Still processing...");
+}
+      }
+
+      if (attempts > 24) {
+        clearInterval(interval);
+        alert("Payment not confirmed. Please check.");
+      }
+
+    } catch (err) {
+      console.error("ERROR:", err);
+    }
+
+  }, 5000);
+}
+
+function parseMeres(meres) {
+  if (!meres) return null;
+
+  const parts = meres.split("|");
+
+  return {
+    orderId: parts[1],
+    amount: parseFloat(parts[2]),
+    status: parts[4]
+  };
+}
 
     /* init */
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -521,4 +652,3 @@
     </script>
     </body>
     </html>
-
