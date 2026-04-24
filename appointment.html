@@ -158,6 +158,24 @@
   </div>
       </div>
 
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<div id="qrModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+  
+  <div style="background:#fff; padding:25px; border-radius:12px; text-align:center; width:320px; position:relative;">
+    
+    <button onclick="closeQR()" style="position:absolute; top:10px; right:12px; border:none; background:none; font-size:18px; cursor:pointer;">✖</button>
+
+    <h3>Scan to Pay</h3>
+
+    <div id="qrCode" style="margin:15px 0;"></div>
+
+    <div style="margin:10px 0; font-weight:bold;">OR</div>
+
+    <button id="upiBtn" style="width:100%;">Open UPI App</button>
+
+  </div>
+</div>
     <script>
     /* ---------- CONFIG ---------- */
     const blockedDates = []; // add 'YYYY-MM-DD' if needed
@@ -478,19 +496,14 @@ payButton.addEventListener('click', async () => {
 
   console.log("====== UPI LINK ======");
   console.log(upiUrl);
-
   console.log("Txn ID:", currentTxnId);
 
-  // ✅ STEP 1 — Update backend BEFORE opening UPI
   await updatePlainText(currentTxnId);
 
-  window.location.href = upiUrl;
+  // ✅ SHOW QR POPUP INSTEAD OF DIRECT REDIRECT
+  showQR(upiUrl);
 
-  console.log("Waiting for payment...");
-
-  // ✅ STEP 3 — Start checking
   startPaymentCheck(currentTxnId);
-
 });
 
 async function updatePlainText(orderId) {
@@ -555,6 +568,27 @@ async function updatePlainText(orderId) {
   } catch (err) {
     console.error("Update error:", err);
   }
+}
+
+function showQR(upiUrl) {
+  document.getElementById("qrModal").style.display = "flex";
+
+  const qrContainer = document.getElementById("qrCode");
+  qrContainer.innerHTML = "";
+
+  new QRCode(qrContainer, {
+    text: upiUrl,
+    width: 220,
+    height: 220
+  });
+
+  document.getElementById("upiBtn").onclick = () => {
+    window.location.href = upiUrl;
+  };
+}
+
+function closeQR() {
+  document.getElementById("qrModal").style.display = "none";
 }
 
 async function startPaymentCheck(orderId) {
